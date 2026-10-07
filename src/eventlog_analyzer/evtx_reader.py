@@ -10,6 +10,7 @@ analysis belong in other modules.
 
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 from Evtx.Evtx import Evtx
 
@@ -124,7 +125,7 @@ def parse_event_xml(
     execution_element = system.find("event:Execution", XML_NAMESPACES)
     security_element = system.find("event:Security", XML_NAMESPACES)
 
-    event_data: dict[str, str | None] = {}
+    event_data: dict[str, Any] = {}
 
     event_data_element = root.find("event:EventData", XML_NAMESPACES)
 
@@ -139,7 +140,17 @@ def parse_event_xml(
             if not name:
                 name = f"_unnamed_{index}"
 
-            event_data[name] = data_element.text
+            value = data_element.text
+
+            if name not in event_data:
+                event_data[name] = value
+            else:
+                existing_value = event_data[name]
+
+                if isinstance(existing_value, list):
+                    existing_value.append(value)
+                else:
+                    event_data[name] = [existing_value, value]
 
     return EventRecord(
         event_id=_optional_int(system_text("EventID")) or 0,

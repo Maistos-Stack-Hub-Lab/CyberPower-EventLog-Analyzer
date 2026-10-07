@@ -62,3 +62,54 @@ def test_parse_event_xml():
 
     assert event.source_file == Path("input/test.evtx")
     assert event.raw_xml == SAMPLE_EVENT_XML
+
+
+def test_parse_event_xml_preserves_duplicate_event_data_names():
+    xml_text = """\
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Test-Provider" />
+    <EventID>9999</EventID>
+    <EventRecordID>1</EventRecordID>
+  </System>
+  <EventData>
+    <Data Name="RuleName">First rule</Data>
+    <Data Name="RuleName">Second rule</Data>
+    <Data Name="Status">Test status</Data>
+  </EventData>
+</Event>
+"""
+
+    event = parse_event_xml(xml_text)
+
+    assert event.event_data["RuleName"] == [
+        "First rule",
+        "Second rule",
+    ]
+
+    assert event.event_data["Status"] == "Test status"
+
+
+def test_parse_event_xml_preserves_multiple_and_empty_duplicate_values():
+    xml_text = """\
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Test-Provider" />
+    <EventID>9999</EventID>
+    <EventRecordID>2</EventRecordID>
+  </System>
+  <EventData>
+    <Data Name="RuleName">First rule</Data>
+    <Data Name="RuleName"></Data>
+    <Data Name="RuleName">Third rule</Data>
+  </EventData>
+</Event>
+"""
+
+    event = parse_event_xml(xml_text)
+
+    assert event.event_data["RuleName"] == [
+        "First rule",
+        None,
+        "Third rule",
+    ]
