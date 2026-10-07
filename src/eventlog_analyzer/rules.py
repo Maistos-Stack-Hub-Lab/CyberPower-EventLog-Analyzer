@@ -42,6 +42,21 @@ def analyze_code_integrity_3077(event: EventRecord) -> Finding | None:
         if key in event.event_data
     }
 
+    interpretation = (
+        "The referenced file was blocked by an enforced App Control policy."
+    )
+
+    requested_signing_level = event.event_data.get("Requested Signing Level")
+    validated_signing_level = event.event_data.get("Validated Signing Level")
+
+    if requested_signing_level == "2" and validated_signing_level == "1":
+        interpretation += (
+            " Requested signing level 2 required the file to pass the "
+            "App Control policy. Validated signing level 1 means Windows "
+            "treated the file as unsigned or as having no signature that "
+            "passed the active policy."
+        )
+
     return Finding(
         rule_id="codeintegrity.event_3077",
         category="CodeIntegrity",
@@ -51,6 +66,7 @@ def analyze_code_integrity_3077(event: EventRecord) -> Finding | None:
             "A Microsoft-Windows-CodeIntegrity event with Event ID 3077 "
             "was recorded."
         ),
+        interpretation=interpretation,
         evidence=evidence,
         event_id=event.event_id,
         record_id=event.record_id,

@@ -43,7 +43,7 @@ def test_code_integrity_3077_creates_finding():
     assert finding.record_id == 1969
     assert finding.timestamp == timestamp
 
-    assert finding.interpretation is None
+    assert finding.interpretation is not None
     assert finding.hypothesis is None
 
     assert finding.evidence["Status"] == "0xc0e90002"
@@ -79,3 +79,38 @@ def test_code_integrity_3077_ignores_other_providers():
     finding = analyze_code_integrity_3077(event)
 
     assert finding is None
+
+
+def test_code_integrity_3077_adds_documented_interpretation():
+    event = EventRecord(
+        event_id=3077,
+        record_id=1969,
+        timestamp=None,
+        provider="Microsoft-Windows-CodeIntegrity",
+        channel="Microsoft-Windows-CodeIntegrity/Operational",
+        computer="TEST-PC",
+        event_data={
+            "File Name": r"\Device\HarddiskVolume3\Example\component.pyd",
+            "Process Name": r"\Device\HarddiskVolume3\Example\application.exe",
+            "Requested Signing Level": "2",
+            "Validated Signing Level": "1",
+            "Status": "0xc0e90002",
+            "PolicyName": "VerifiedAndReputableDesktop",
+        },
+    )
+
+    finding = analyze_code_integrity_3077(event)
+
+    assert finding is not None
+    assert finding.interpretation is not None
+
+    assert "blocked" in finding.interpretation.lower()
+    assert "App Control" in finding.interpretation
+    assert "signing level 2" in finding.interpretation
+    assert "signing level 1" in finding.interpretation
+
+    # Event 3077 alone must not claim that the file is definitely unsigned.
+    assert "file is unsigned" not in finding.interpretation.lower()
+
+    # Root cause remains unconfirmed until additional evidence is correlated.
+    assert finding.hypothesis is None
