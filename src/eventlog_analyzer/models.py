@@ -10,8 +10,27 @@ represent data extracted from the original event log.
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Any
+
+
+class Severity(str, Enum):
+    """Severity assigned to an analysis finding."""
+
+    INFO = "info"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class FindingType(str, Enum):
+    """Evidence confidence/type used by an analysis finding."""
+
+    OBSERVATION = "observation"
+    INTERPRETATION = "interpretation"
+    HYPOTHESIS = "hypothesis"
 
 
 @dataclass(slots=True)
@@ -44,3 +63,29 @@ class EventRecord:
 
     raw_xml: str | None = None
     source_file: Path | None = None
+
+
+@dataclass(slots=True)
+class Finding:
+    """
+    Structured result produced by the analysis layer.
+
+    Observation, interpretation, and hypothesis are kept separate so
+    reports can distinguish directly observed evidence from technical
+    interpretation and unconfirmed possible causes.
+    """
+
+    rule_id: str
+    category: str
+    severity: Severity
+    title: str
+    observation: str
+
+    interpretation: str | None = None
+    hypothesis: str | None = None
+
+    evidence: dict[str, Any] = field(default_factory=dict)
+
+    event_id: int | None = None
+    record_id: int | None = None
+    timestamp: datetime | None = None

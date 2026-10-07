@@ -1,0 +1,81 @@
+from datetime import datetime, timezone
+
+from eventlog_analyzer.models import EventRecord, Severity
+from eventlog_analyzer.rules import analyze_code_integrity_3077
+
+
+def test_code_integrity_3077_creates_finding():
+    timestamp = datetime(
+        2026,
+        10,
+        3,
+        13,
+        4,
+        40,
+        tzinfo=timezone.utc,
+    )
+
+    event = EventRecord(
+        event_id=3077,
+        record_id=1969,
+        timestamp=timestamp,
+        provider="Microsoft-Windows-CodeIntegrity",
+        channel="Microsoft-Windows-CodeIntegrity/Operational",
+        computer="TEST-PC",
+        event_data={
+            "File Name": r"\Device\HarddiskVolume3\Example\component.pyd",
+            "Process Name": r"\Device\HarddiskVolume3\Example\application.exe",
+            "Requested Signing Level": "2",
+            "Validated Signing Level": "1",
+            "Status": "0xc0e90002",
+            "PolicyName": "VerifiedAndReputableDesktop",
+            "Unrelated Field": "should not be copied",
+        },
+    )
+
+    finding = analyze_code_integrity_3077(event)
+
+    assert finding is not None
+    assert finding.rule_id == "codeintegrity.event_3077"
+    assert finding.category == "CodeIntegrity"
+    assert finding.severity is Severity.HIGH
+    assert finding.event_id == 3077
+    assert finding.record_id == 1969
+    assert finding.timestamp == timestamp
+
+    assert finding.interpretation is None
+    assert finding.hypothesis is None
+
+    assert finding.evidence["Status"] == "0xc0e90002"
+    assert finding.evidence["PolicyName"] == "VerifiedAndReputableDesktop"
+    assert "Unrelated Field" not in finding.evidence
+
+
+def test_code_integrity_3077_ignores_other_event_ids():
+    event = EventRecord(
+        event_id=3089,
+        record_id=2000,
+        timestamp=None,
+        provider="Microsoft-Windows-CodeIntegrity",
+        channel="Microsoft-Windows-CodeIntegrity/Operational",
+        computer="TEST-PC",
+    )
+
+    finding = analyze_code_integrity_3077(event)
+
+    assert finding is None
+
+
+def test_code_integrity_3077_ignores_other_providers():
+    event = EventRecord(
+        event_id=3077,
+        record_id=2001,
+        timestamp=None,
+        provider="Some-Other-Provider",
+        channel="Some-Other-Channel",
+        computer="TEST-PC",
+    )
+
+    finding = analyze_code_integrity_3077(event)
+
+    assert finding is None
