@@ -1,0 +1,4 @@
+# CyberPower EventLog Analyzer
+# Runtime dependencies
+
+python-evtx==0.8.1

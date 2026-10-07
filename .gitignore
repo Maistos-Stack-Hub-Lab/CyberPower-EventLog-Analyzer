@@ -81,3 +81,5 @@ desktop.ini
 *.tmp
 *.temp
 *.log
+# Test caches
+.pytest_cache/
