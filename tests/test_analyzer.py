@@ -36,7 +36,7 @@ def test_analyze_event_applies_default_rules():
 
 def test_analyze_event_returns_empty_list_for_unmatched_event():
     event = EventRecord(
-        event_id=3089,
+        event_id=9999,
         record_id=1970,
         timestamp=None,
         provider="Microsoft-Windows-CodeIntegrity",
@@ -161,12 +161,13 @@ def test_analyze_events_processes_multiple_events_in_order():
 
     findings = analyze_events(events)
 
-    assert len(findings) == 2
-    assert [finding.record_id for finding in findings] == [100, 102]
-    assert all(
-        finding.rule_id == "codeintegrity.event_3077"
-        for finding in findings
-    )
+    assert len(findings) == 3
+    assert [finding.record_id for finding in findings] == [100, 101, 102]
+    assert [finding.rule_id for finding in findings] == [
+        "codeintegrity.event_3077",
+        "codeintegrity.event_3089",
+        "codeintegrity.event_3077",
+    ]
 
 
 def test_analyze_events_handles_empty_collection():
@@ -201,3 +202,72 @@ def test_analyze_events_accepts_generator():
 
     assert len(findings) == 3
     assert [finding.record_id for finding in findings] == [300, 301, 302]
+
+
+def test_analyze_events_with_correlation_returns_findings_and_pair():
+    from eventlog_analyzer.analyzer import analyze_events_with_correlation
+
+    activity_id = "{11111111-2222-3333-4444-555555555555}"
+
+    event_3089 = EventRecord(
+        event_id=3089,
+        record_id=1100,
+        timestamp=None,
+        provider="Microsoft-Windows-CodeIntegrity",
+        channel="Microsoft-Windows-CodeIntegrity/Operational",
+        computer="TEST-PC",
+        activity_id=activity_id,
+        process_id=1234,
+        thread_id=5678,
+    )
+
+    event_3077 = EventRecord(
+        event_id=3077,
+        record_id=1101,
+        timestamp=None,
+        provider="Microsoft-Windows-CodeIntegrity",
+        channel="Microsoft-Windows-CodeIntegrity/Operational",
+        computer="TEST-PC",
+        activity_id=activity_id,
+        process_id=1234,
+        thread_id=5678,
+    )
+
+    events = (event for event in [event_3089, event_3077])
+
+    result = analyze_events_with_correlation(events)
+
+    assert len(result.findings) == 2
+    assert [finding.rule_id for finding in result.findings] == [
+        "codeintegrity.event_3089",
+        "codeintegrity.event_3077",
+    ]
+    assert result.correlations == [(event_3077, event_3089)]
+
+
+def test_analyze_events_with_correlation_handles_empty_input():
+    from eventlog_analyzer.analyzer import analyze_events_with_correlation
+
+    result = analyze_events_with_correlation(iter([]))
+
+    assert result.findings == []
+    assert result.correlations == []
+
+
+def test_analyze_events_with_correlation_ignores_unrelated_events():
+    from eventlog_analyzer.analyzer import analyze_events_with_correlation
+
+    unrelated_event = EventRecord(
+        event_id=9999,
+        record_id=1200,
+        timestamp=None,
+        provider="Microsoft-Windows-CodeIntegrity",
+        channel="Microsoft-Windows-CodeIntegrity/Operational",
+        computer="TEST-PC",
+        activity_id="{11111111-2222-3333-4444-555555555555}",
+    )
+
+    result = analyze_events_with_correlation([unrelated_event])
+
+    assert result.findings == []
+    assert result.correlations == []

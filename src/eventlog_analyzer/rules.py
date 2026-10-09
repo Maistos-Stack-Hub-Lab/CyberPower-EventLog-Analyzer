@@ -72,3 +72,67 @@ def analyze_code_integrity_3077(event: EventRecord) -> Finding | None:
         record_id=event.record_id,
         timestamp=event.timestamp,
     )
+
+
+def analyze_code_integrity_3089(event: EventRecord) -> Finding | None:
+    """
+    Record signature information from CodeIntegrity Event ID 3089.
+
+    This event provides signature details associated with a CodeIntegrity
+    validation. It does not independently establish a block or root cause.
+    """
+
+    if event.provider != CODE_INTEGRITY_PROVIDER:
+        return None
+
+    if event.event_id != 3089:
+        return None
+
+    evidence_keys = (
+        "TotalSignatureCount",
+        "Signature",
+        "SignatureType",
+        "ValidatedSigningLevel",
+        "VerificationError",
+        "PublisherName",
+        "IssuerName",
+        "Hash",
+        "PageHash",
+    )
+
+    evidence = {
+        key: event.event_data[key]
+        for key in evidence_keys
+        if key in event.event_data
+    }
+
+    if event.activity_id is not None:
+        evidence["ActivityID"] = event.activity_id
+
+    interpretation = (
+        "This event records signature information associated with "
+        "a Windows CodeIntegrity validation."
+    )
+
+    if event.event_data.get("TotalSignatureCount") == "0":
+        interpretation += (
+            " Windows reported zero signatures for the inspected file "
+            "in this event. This alone does not establish the cause "
+            "of any application block."
+        )
+
+    return Finding(
+        rule_id="codeintegrity.event_3089",
+        category="CodeIntegrity",
+        severity=Severity.INFO,
+        title="Windows Code Integrity Event 3089 detected",
+        observation=(
+            "A Microsoft-Windows-CodeIntegrity event with Event ID 3089 "
+            "was recorded."
+        ),
+        interpretation=interpretation,
+        evidence=evidence,
+        event_id=event.event_id,
+        record_id=event.record_id,
+        timestamp=event.timestamp,
+    )

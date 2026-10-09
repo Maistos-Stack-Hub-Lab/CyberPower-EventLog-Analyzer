@@ -89,3 +89,13 @@ class Finding:
     event_id: int | None = None
     record_id: int | None = None
     timestamp: datetime | None = None
+
+
+@dataclass(slots=True)
+class AnalysisResult:
+    """Combined event findings and candidate event correlations."""
+
+    findings: list[Finding] = field(default_factory=list)
+    correlations: list[tuple[EventRecord, EventRecord]] = field(
+        default_factory=list
+    )

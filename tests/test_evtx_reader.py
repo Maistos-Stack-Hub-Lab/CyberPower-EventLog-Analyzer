@@ -113,3 +113,32 @@ def test_parse_event_xml_preserves_multiple_and_empty_duplicate_values():
         None,
         "Third rule",
     ]
+
+
+def test_parse_event_xml_preserves_correlation_activity_id():
+    from eventlog_analyzer.evtx_reader import parse_event_xml
+
+    xml = """\
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Microsoft-Windows-CodeIntegrity" />
+    <EventID>3089</EventID>
+    <EventRecordID>101</EventRecordID>
+    <Channel>Microsoft-Windows-CodeIntegrity/Operational</Channel>
+    <Computer>TEST-PC</Computer>
+    <Correlation ActivityID="{11111111-2222-3333-4444-555555555555}" />
+    <Execution ProcessID="1234" ThreadID="5678" />
+  </System>
+  <EventData>
+    <Data Name="TotalSignatureCount">0</Data>
+  </EventData>
+</Event>
+"""
+
+    event = parse_event_xml(xml)
+
+    assert event.event_id == 3089
+    assert event.activity_id == "{11111111-2222-3333-4444-555555555555}"
+    assert event.process_id == 1234
+    assert event.thread_id == 5678
+    assert event.event_data["TotalSignatureCount"] == "0"

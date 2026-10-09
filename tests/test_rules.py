@@ -114,3 +114,65 @@ def test_code_integrity_3077_adds_documented_interpretation():
 
     # Root cause remains unconfirmed until additional evidence is correlated.
     assert finding.hypothesis is None
+
+
+def test_code_integrity_3089_records_signature_information():
+    from eventlog_analyzer.rules import analyze_code_integrity_3089
+
+    event = EventRecord(
+        event_id=3089,
+        record_id=200,
+        timestamp=None,
+        provider="Microsoft-Windows-CodeIntegrity",
+        channel="Microsoft-Windows-CodeIntegrity/Operational",
+        computer="TEST-PC",
+        activity_id="{11111111-2222-3333-4444-555555555555}",
+        event_data={
+            "TotalSignatureCount": "0",
+            "Signature": "0",
+            "SignatureType": "0",
+            "ValidatedSigningLevel": "0",
+            "VerificationError": "0",
+            "PublisherName": "Unknown",
+            "IssuerName": "Unknown",
+        },
+    )
+
+    finding = analyze_code_integrity_3089(event)
+
+    assert finding is not None
+    assert finding.rule_id == "codeintegrity.event_3089"
+    assert finding.severity is Severity.INFO
+    assert finding.event_id == 3089
+    assert finding.record_id == 200
+
+    assert finding.evidence["TotalSignatureCount"] == "0"
+    assert finding.evidence["ActivityID"] == event.activity_id
+
+    assert "zero signatures" in finding.interpretation
+    assert finding.hypothesis is None
+
+
+def test_code_integrity_3089_ignores_unrelated_events():
+    from eventlog_analyzer.rules import analyze_code_integrity_3089
+
+    wrong_event_id = EventRecord(
+        event_id=3077,
+        record_id=201,
+        timestamp=None,
+        provider="Microsoft-Windows-CodeIntegrity",
+        channel="Microsoft-Windows-CodeIntegrity/Operational",
+        computer="TEST-PC",
+    )
+
+    wrong_provider = EventRecord(
+        event_id=3089,
+        record_id=202,
+        timestamp=None,
+        provider="TEST-PROVIDER",
+        channel="TEST-CHANNEL",
+        computer="TEST-PC",
+    )
+
+    assert analyze_code_integrity_3089(wrong_event_id) is None
+    assert analyze_code_integrity_3089(wrong_provider) is None
