@@ -132,3 +132,72 @@ def test_analyze_event_skips_rules_without_findings():
 
     assert len(findings) == 1
     assert findings[0].rule_id == "test.matching_rule"
+
+
+def test_analyze_events_processes_multiple_events_in_order():
+    from eventlog_analyzer.analyzer import analyze_events
+
+    def make_event(event_id, record_id):
+        return EventRecord(
+            event_id=event_id,
+            record_id=record_id,
+            timestamp=None,
+            provider="Microsoft-Windows-CodeIntegrity",
+            channel="Microsoft-Windows-CodeIntegrity/Operational",
+            computer="TEST-PC",
+            event_data={
+                "File Name": r"C:\Example\component.pyd",
+                "Requested Signing Level": "2",
+                "Validated Signing Level": "1",
+                "Status": "0xc0e90002",
+            },
+        )
+
+    events = [
+        make_event(3077, 100),
+        make_event(3089, 101),
+        make_event(3077, 102),
+    ]
+
+    findings = analyze_events(events)
+
+    assert len(findings) == 2
+    assert [finding.record_id for finding in findings] == [100, 102]
+    assert all(
+        finding.rule_id == "codeintegrity.event_3077"
+        for finding in findings
+    )
+
+
+def test_analyze_events_handles_empty_collection():
+    from eventlog_analyzer.analyzer import analyze_events
+
+    findings = analyze_events([])
+
+    assert findings == []
+
+
+def test_analyze_events_accepts_generator():
+    from eventlog_analyzer.analyzer import analyze_events
+
+    def generate_events():
+        for record_id in (300, 301, 302):
+            yield EventRecord(
+                event_id=3077,
+                record_id=record_id,
+                timestamp=None,
+                provider="Microsoft-Windows-CodeIntegrity",
+                channel="Microsoft-Windows-CodeIntegrity/Operational",
+                computer="TEST-PC",
+                event_data={
+                    "File Name": r"C:\Example\component.pyd",
+                    "Requested Signing Level": "2",
+                    "Validated Signing Level": "1",
+                    "Status": "0xc0e90002",
+                },
+            )
+
+    findings = analyze_events(generate_events())
+
+    assert len(findings) == 3
+    assert [finding.record_id for finding in findings] == [300, 301, 302]

@@ -5,7 +5,7 @@ This module applies registered analysis rules to normalized events
 and collects their findings. It does not parse EVTX files directly.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from eventlog_analyzer.models import EventRecord, Finding
 from eventlog_analyzer.rules import analyze_code_integrity_3077
@@ -39,5 +39,23 @@ def analyze_event(
 
         if finding is not None:
             findings.append(finding)
+
+    return findings
+
+
+def analyze_events(
+    events: Iterable[EventRecord],
+    rules: tuple[Rule, ...] = DEFAULT_RULES,
+) -> list[Finding]:
+    """
+    Analyze multiple events and collect their findings.
+
+    Events are processed in input order. Findings retain that order.
+    """
+
+    findings: list[Finding] = []
+
+    for event in events:
+        findings.extend(analyze_event(event, rules=rules))
 
     return findings
